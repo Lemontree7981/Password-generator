@@ -413,15 +413,24 @@ class PasswordGenerator(QMainWindow):
         else:
             self.strength_label.setText("Password Strength: Strong")
             self.strength_label.setStyleSheet("color: #4CAF50; font-style: italic;")
-        
+    def reset_copy_button(self):
+        # Reset the button to its original state
+        if hasattr(self, 'original_copy_text') and hasattr(self, 'original_copy_style'):
+            self.copy_button.setText(self.original_copy_text)
+        self.copy_button.setStyleSheet(self.original_copy_style)
     def generate_password(self):
+        # Reset copy button to original state if it was in "copied" state
+        if hasattr(self, 'copy_reset_timer') and self.copy_reset_timer.isActive():
+            self.copy_reset_timer.stop()
+            self.reset_copy_button()
+        
         length = self.length_slider.value()
         
         # Check if at least one option is selected
         if not any([self.use_uppercase.isChecked(), 
-                   self.use_lowercase.isChecked(),
-                   self.use_numbers.isChecked(),
-                   self.use_special.isChecked()]):
+                self.use_lowercase.isChecked(),
+                self.use_numbers.isChecked(),
+                self.use_special.isChecked()]):
             QMessageBox.warning(self, "Warning", "Please select at least one character type.")
             return
         
@@ -511,8 +520,12 @@ class PasswordGenerator(QMainWindow):
             clipboard = QApplication.clipboard()
             clipboard.setText(self.password_field.text())
             
-            # Show copy feedback animation
-            original_style = self.copy_button.styleSheet()
+            # Store original button text and style
+            self.original_copy_text = self.copy_button.text()
+            self.original_copy_style = self.copy_button.styleSheet()
+            
+            # Change button appearance to show success
+            self.copy_button.setText("✓ Copied!")
             self.copy_button.setStyleSheet(
                 """
                 QPushButton {
@@ -523,18 +536,24 @@ class PasswordGenerator(QMainWindow):
                     padding: 8px 16px;
                     font-weight: bold;
                 }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }
+                QPushButton:pressed {
+                    background-color: #3d8b40;
+                }
                 """
             )
             
-            # Reset button style after animation
-            QApplication.processEvents()
+            # Update status bar
             self.statusBar().showMessage('Password copied to clipboard!', 3000)
             
-            # Use QTimer instead of QApplication.singleShot
-            timer = QTimer()
-            timer.setSingleShot(True)
-            timer.timeout.connect(lambda: self.copy_button.setStyleSheet(original_style))
-            timer.start(500)  # Reset after 500ms
+            # Reset button after longer delay (2 seconds) if user doesn't generate new password
+            self.copy_reset_timer = QTimer()
+            self.copy_reset_timer.setSingleShot(True)
+            self.copy_reset_timer.timeout.connect(self.reset_copy_button)
+            self.copy_reset_timer.start(2000)  # Reset after 2 seconds
+
         
 if __name__ == '__main__':
     app = QApplication(sys.argv)
